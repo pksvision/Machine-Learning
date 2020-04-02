@@ -1,6 +1,6 @@
 # Linear Regression
 # author : Prasen Kumar Sharma
-# source : 
+# source : https://github.com/atinesh-s/Coursera-Machine-Learning-Stanford/tree/master/Week%202/Programming%20Assignment/machine-learning-ex1
 import numpy as np
 from matplotlib import pyplot as plt
 import math
