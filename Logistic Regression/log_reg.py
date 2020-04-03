@@ -44,34 +44,35 @@ class DataLoader(object):
 		
 	def load_data(self):
 		data = np.loadtxt(self.path, delimiter=',')
-		return data[:,0], data[:,1], data[:,2]
+		return data
 
-	def modify_data(self, x1_data, x2_data, degree):
-		array = np.zeros((x1_data.shape[0],2))
-		array[:,0] = x1_data
-		array[:,1] = x2_data
-		return array
+	def modify_data(self, data):
+		# first n-1 are features and last channel is class labels
+		data_for_fit = np.ones_like(data)
+		data_for_fit[:,1:] = data[:, :data.shape[1]-1]
+		class_labels = data[:, data.shape[1]-1]
+		return data_for_fit, class_labels
 
-	def plot_decision_boundary(self, weight_changes, weights, x_fit_data, x_data, y_data, c_data):
-		plt.scatter(x_data, y_data, c=c_data)
+	def plot_decision_boundary(self, final_weights, x_fit_data, data):
+		plt.scatter(data[:,0], data[:,1], c=data[:,2])
 		plt.title("Given Data for Logistic Regression")
 		plt.xlabel('Marks 1')
 		plt.ylabel('Marks 2')		
-		
-		# new_ys = [np.dot(np.transpose(weights), x_fit_data[i])[0] for i in range(len(x_fit_data))]
-		# plt.plot(x_data, new_ys, 'k')
+		final_weights.reshape(3)
+		plot_x = np.array([ min(data[:,0]), max(data[:,1]) ])
+		plot_y = (-1/final_weights[2]) *(final_weights[1]*plot_x + final_weights[0])
+		plt.plot(plot_x, plot_y, label='Decision Boundary')
 		plt.show()
 
 class LinearRegression(object):
 	"""docstring for LinearRegression"""
-	def __init__(self, x_data, y_data, degree, iterations, lr):
+	def __init__(self, x_data, y_data, iterations, lr):
 		super(LinearRegression, self).__init__()
 		self.iterations = iterations
 		self.alpha = lr
 		self.x_data = x_data
 		self.y_data = y_data
 		self.costs_list = []
-		self.degree = degree
 		self.activation = Activation()
 		self.cost = Cost(len(self.x_data))
 
@@ -84,9 +85,9 @@ class LinearRegression(object):
 		return error, h_x
 
 	def start_regression(self):
-		theta = np.random.rand(self.degree, 1)
+		theta = np.random.rand(self.x_data.shape[1], 1)
 		print("Init Weights : ", theta)
-		weight_changes = np.zeros(( self.iterations+1, self.degree, 1 ))
+		weight_changes = np.zeros(( self.iterations+1, self.x_data.shape[1], 1 ))
 		weight_changes[0, :, :] =  theta
 		for iter in range(self.iterations):
 			total_cost=[]
@@ -95,13 +96,11 @@ class LinearRegression(object):
 				cost, hypothesis = self.compute_cost(theta, self.x_data[item], self.y_data[item])
 				total_cost.append(cost)
 				hypothesis_collection.append(hypothesis)
-			# Now have total cost and hypothesis for each item
-			etas = [0]*self.degree
+			etas = [0]*self.x_data.shape[1]
 			for eta in range(len(etas)):
 				for item in range(len(self.x_data)):
 					etas[eta] += (hypothesis_collection[item]-self.y_data[item])*(self.x_data[item][eta]) + (self.cost.LAMBDA/self.cost.m)*theta[eta]
-			# update weights using etas
-			for ind in range(self.degree):
+			for ind in range(self.x_data.shape[1]):
 				theta[ind] = theta[ind] - self.alpha* etas[ind]/len(self.x_data)
 			weight_changes[iter + 1, :, :] = theta
 			print("Iter : ",iter," Avg. error : %.30f "% (sum(total_cost)/len(self.x_data)))
@@ -109,13 +108,12 @@ class LinearRegression(object):
 		return weight_changes, self.costs_list
 				
 if __name__ == '__main__':
-	# degree is 2 
 	# Change for polynomial
-	degree, iterations, lr = sys.argv[1], sys.argv[2], sys.argv[3]
+	iterations, lr = sys.argv[1], sys.argv[2]
 	data = DataLoader("./data.txt")
-	la_data_x, la_data_y, la_data_class = data.load_data()
-	data_for_fit_x =  data.modify_data(la_data_x, la_data_y, int(degree))
-	la = LinearRegression(data_for_fit_x, la_data_class, int(degree), int(iterations), float(lr))
+	la_data = data.load_data()	
+	data_for_fit, class_labels =  data.modify_data(la_data)
+	la = LinearRegression(data_for_fit, class_labels, int(iterations), float(lr))
 	weight_changes, costs_list = la.start_regression()
 	print("Minimum cost : ", costs_list[costs_list.index(min(costs_list))])
-	data.plot_decision_boundary(weight_changes, weight_changes[costs_list.index(min(costs_list))+1], data_for_fit_x, la_data_x, la_data_y, la_data_class)
+	data.plot_decision_boundary(weight_changes[costs_list.index(min(costs_list))+1], data_for_fit, la_data)
